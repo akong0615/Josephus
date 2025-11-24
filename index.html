@@ -95,8 +95,8 @@
             </div>
 
             <!-- 최대 인원 안내 문구 -->
-            <p class="text-[11px] sm:text-xs text-white drop-shadow text-left mt-1 font-medium">
-               (※ 사람 수는 <span class="font-bold">최대 30명</span>까지 가능)
+            <p class="text-[11px] sm:text-xs text-white drop-shadow text-right mt-1 font-medium">
+                (※사람 수는 <span class="font-bold">최대 30명</span>까지 가능)
             </p>
         </div>
 
@@ -145,7 +145,7 @@
                 id="eliminationOrder"
                 class="flex flex-wrap items-center justify-center gap-1 sm:gap-2 text-xs sm:text-base max-h-24 sm:max-h-32 overflow-y-auto"
             >
-                <span class="text-white drop-shadow">시작하기를 눌러주세요</span>
+                <span class="text-white drop-shadow">자동 시작를 눌러주세요</span>
             </div>
         </div>
     </div>
@@ -212,14 +212,14 @@
             const defs   = document.createElementNS("http://www.w3.org/2000/svg", "defs");
             const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
             marker.setAttribute("id", "arrowhead");
-            marker.setAttribute("markerWidth", "12");
-            marker.setAttribute("markerHeight", "12");
-            marker.setAttribute("refX", "10");
-            marker.setAttribute("refY", "4");
+            marker.setAttribute("markerWidth", "6");
+            marker.setAttribute("markerHeight", "6");
+            marker.setAttribute("refX", "5");
+            marker.setAttribute("refY", "2.5");
             marker.setAttribute("orient", "auto");
 
             const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-            poly.setAttribute("points", "0 0, 12 4, 0 8");
+            poly.setAttribute("points", "0 0, 6 2.5, 0 5");
             poly.setAttribute("fill", "#FFD700");
             marker.appendChild(poly);
 
@@ -270,9 +270,16 @@
                 item.style.transform = "translate(-50%, -50%)";
 
                 const circle = document.createElement("div");
+                // 인원수에 따라 동적으로 크기 조정
+                const sizeClass = n <= 12 
+                    ? "w-11 h-11 sm:w-16 sm:h-16 text-base sm:text-xl"
+                    : n <= 20
+                    ? "w-9 h-9 sm:w-12 sm:h-12 text-sm sm:text-base"
+                    : "w-8 h-8 sm:w-10 sm:h-10 text-xs sm:text-sm";
+                
                 circle.className =
                     "flex items-center justify-center rounded-full font-bold shadow-xl " +
-                    "w-11 h-11 sm:w-16 sm:h-16 lg:w-18 lg:h-18 text-base sm:text-xl " +
+                    sizeClass + " " +
                     (isDead
                         ? "bg-gray-400 text-gray-600"
                         : isWinner
@@ -280,13 +287,6 @@
                         : "bg-white text-[#1d3fff]");
                 circle.textContent = i;
                 item.appendChild(circle);
-
-                if (isDead) {
-                    const cross = document.createElement("div");
-                    cross.className = "absolute -top-1 -right-1 text-white text-xl font-bold drop-shadow-lg";
-                    cross.textContent = "✕";
-                    item.appendChild(cross);
-                }
 
                 if (isWinner) {
                     const badge = document.createElement("div");
@@ -303,7 +303,7 @@
         function updateEliminationOrder() {
             if (eliminated.length === 0) {
                 eliminationOrder.innerHTML =
-                    '<span class="text-white drop-shadow font-medium">시작하기를 눌러주세요</span>';
+                    '<span class="text-white drop-shadow font-medium">자동시작을 눌러주세요</span>';
                 return;
             }
 
@@ -325,7 +325,7 @@
         function setupCenterControl() {
             centerControl.innerHTML = `
               <div class="text-center bg-black/40 backdrop-blur-md rounded-2xl p-2 sm:p-4 border border-white/30 shadow-2xl">
-                <div class="text-white text-lg sm:text-2xl font-bold mb-1 sm:mb-2 drop-shadow-lg">진행</div>
+                <div class="text-white text-lg sm:text-2xl font-bold mb-1 sm:mb-2 drop-shadow-lg">요세푸스</div>
                 <div class="text-xs sm:text-sm mb-1 text-white drop-shadow font-medium">
                   제거: <span id="delCount" class="font-bold">0</span>명 ·
                   생존: <span id="leftCount" class="font-bold">${remaining.length}</span>명
@@ -336,7 +336,7 @@
                     class="flex-1 bg-gradient-to-r from-[#00C853] to-[#00E676] hover:from-[#00E676] hover:to-[#69F0AE]
                     text-white font-bold py-2 px-3 rounded-full shadow-lg text-xs sm:text-sm transform hover:scale-105 transition-all"
                   >
-                    자동
+                    자동 시작
                   </button>
                   <button
                     id="stepBtn"
@@ -370,11 +370,11 @@
 
             centerControl.innerHTML = `
               <div class="text-center bg-black/40 backdrop-blur-md rounded-2xl p-3 sm:p-4 border border-white/30 shadow-2xl">
-                <div class="text-white text-xl sm:text-3xl font-bold mb-3 drop-shadow-lg">생존자: ${survivor}번</div>
+                <div class="text-white text-xl sm:text-3xl font-bold mb-3 drop-shadow-lg"> 생존자: ${survivor}번</div>
                 <button id="resetBtn"
                     class="bg-gradient-to-r from-[#6A52FF] to-[#904CFF] hover:from-[#904CFF] hover:to-[#B07FFF]
                     text-white font-bold py-2 px-5 sm:py-3 sm:px-6 rounded-full shadow-xl transform hover:scale-105 transition-all flex items-center gap-2 mx-auto text-sm sm:text-lg">
-                    다시 하기
+                     다시 하기
                 </button>
               </div>
             `;
