@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"
+    />
+    <title>요세푸스 시뮬레이터</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: "Pretendard Variable", Pretendard, -apple-system,
+                BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue",
+                "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR",
+                "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji",
+                "Segoe UI Symbol", sans-serif;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* 현재 카운팅 중인 사람 하이라이트 (짙은 파랑 + 흰 글씨, 얇은 테두리) */
+        .person-current-step > div:first-child {
+            background: #1d3fff !important;
+            color: #ffffff !important;
+            box-shadow:
+                0 0 0 2px rgba(255, 255, 255, 0.9),
+                0 0 8px rgba(37, 99, 235, 0.7);
+        }
+
+        /* 제거 직전 빨간색 하이라이트 */
+        .person-eliminating > div:first-child {
+            background: #ef4444 !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.9);
+            transform: scale(1.2);
+            transition: all 0.25s ease;
+        }
+
+        @keyframes arrowMove {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .arrow-anim {
+            animation: arrowMove 0.6s ease-in-out;
+        }
+    </style>
+</head>
+
+<body class="bg-[#7184f4]">
+    <div class="flex flex-col items-center justify-center p-1 sm:p-4 min-h-screen">
+
+        <!-- 제목 -->
+        <h1 class="text-2xl sm:text-4xl md:text-5xl font-bold text-white mb-3 sm:mb-4 drop-shadow-lg text-center px-4">
+            요세푸스 시뮬레이터
+        </h1>
+
+        <!-- 입력 카드 -->
+        <div
+            class="backdrop-blur-lg rounded-xl p-3 sm:p-4 mb-0 sm:mb-4 shadow-1xl w-full max-w-md"
+            style="background: #4a5ed3;padding:0.75rem 1.5rem;"
+        >
+            <div class="flex flex-row flex-wrap gap-2 sm:gap-6 mb-2 sm:mb-1">
+                <!-- N -->
+                <div class="flex-1 min-w-[140px]">
+                    <label class="text-white text-sm mb-1 block">사람 수 (N)</label>
+                    <input
+                        id="nInput"
+                        type="number"
+                        min="3"
+                        max="30"
+                        value="15"
+                        class="px-3 py-2 rounded-lg bg-white/20 text-white border-2 border-white/30 w-full text-sm"
+                    />
+                </div>
+                <!-- K -->
+                <div class="flex-1 min-w-[140px]">
+                    <label class="text-white text-sm mb-1 block">제거 간격 (K)</label>
+                    <input
+                        id="kInput"
+                        type="number"
+                        min="1"
+                        max="10"
+                        value="4"
+                        class="px-3 py-2 rounded-lg bg-white/20 text-white border-2 border-white/30 w-full text-sm"
+                    />
+                </div>
+            </div>
+
+            <!-- 최대 인원 안내 문구 -->
+            <p class="text-[11px] sm:text-xs text-white/80 text-right mt-1">
+                사람 수는 <span class="font-semibold">최대 30명</span>까지 가능합니다.
+            </p>
+
+            <!-- 설명 문구는 숨기고 싶으면 주석 유지해도 되고,
+                 JS에서는 description이 없어도 에러 안 나게 처리해둠 -->
+            <!--
+            <p id="description" class="text-white/80 text-sm text-center mt-2">
+                4번째마다 한 명씩 제거됩니다
+            </p>
+            -->
+        </div>
+
+        <!-- 원형 시각화 -->
+        <div class="relative w-full max-w-sm sm:max-w-xl aspect-square mb-0 sm:mb-4">
+            <div class="absolute inset-0 flex items-center justify-center">
+
+                <!-- 점선 원 (r=200, viewBox 600x600 기준) -->
+                <svg class="absolute inset-0" width="100%" height="100%" viewBox="0 0 600 600">
+                    <circle
+                        cx="300"
+                        cy="300"
+                        r="200"
+                        fill="none"
+                        stroke="rgba(255,255,255,0.25)"
+                        stroke-dasharray="5,5"
+                        stroke-width="2"
+                    />
+                </svg>
+
+                <!-- 사람들 -->
+                <div id="peopleContainer" class="absolute inset-0 z-10"></div>
+
+                <!-- 화살표 -->
+                <svg
+                    id="arrowContainer"
+                    class="absolute inset-0 z-20"
+                    width="100%"
+                    height="100%"
+                    viewBox="0 0 600 600"
+                ></svg>
+
+                <!-- 중앙 컨트롤 (모바일에서 좀 더 작게) -->
+                <div
+                    id="centerControl"
+                    class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 w-[40%] max-w-[180px] sm:w-[35%] sm:max-w-xs"
+                >
+                    <!-- reset()에서 채움 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 제거 순서 -->
+        <div class="mt-1 sm:mt-3 bg-white/10 backdrop-blur-lg rounded-2xl p-2 sm:p-4 text-white w-full max-w-4xl">
+            <p class="text-sm sm:text-lg font-semibold mb-2 text-center">제거 순서</p>
+            <div
+                id="eliminationOrder"
+                class="flex flex-wrap items-center justify-center gap-1 sm:gap-2 text-xs sm:text-base max-h-24 sm:max-h-32 overflow-y-auto"
+            >
+                <span class="text-gray-300">시작하기를 눌러주세요</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const RADIUS = 200; // SVG 좌표계 기준 반지름 (viewBox 0~600)
+
+        // 기본값: N = 15, K = 4
+        let n = 15;
+        let k = 4;
+        let eliminated = [];
+        let survivor = null;
+
+        let remaining = [];
+        let currentIndex = 0; // 다음 라운드에서 카운트 시작할 위치
+        let isRunningAuto = false;
+        let isAnimatingStep = false;
+
+        const nInput = document.getElementById("nInput");
+        const kInput = document.getElementById("kInput");
+        const peopleContainer = document.getElementById("peopleContainer");
+        const arrowContainer = document.getElementById("arrowContainer");
+        const centerControl = document.getElementById("centerControl");
+        const eliminationOrder = document.getElementById("eliminationOrder");
+        const description = document.getElementById("description"); // 없을 수도 있음
+
+        let delCountSpan = null;
+        let leftCountSpan = null;
+
+        /* SVG 좌표계(0~600)에서의 위치 계산 */
+        function getPosition(index, total) {
+            const angle = (index * 2 * Math.PI) / total - Math.PI / 2;
+            return {
+                x: RADIUS * Math.cos(angle),
+                y: RADIUS * Math.sin(angle),
+                angle,
+            };
+        }
+
+        function setCurrentStep(personIndex) {
+            const all = peopleContainer.querySelectorAll("[data-person]");
+            all.forEach((el) => el.classList.remove("person-current-step"));
+            if (personIndex === null || personIndex === undefined) return;
+            const target = peopleContainer.querySelector(
+                `[data-person="${personIndex}"]`
+            );
+            if (target) target.classList.add("person-current-step");
+        }
+
+        function drawArrow(fromIdx, toIdx) {
+            arrowContainer.innerHTML = "";
+
+            const fp = getPosition(fromIdx, n);
+            const tp = getPosition(toIdx,   n);
+
+            const sx = 300 + fp.x;
+            const sy = 300 + fp.y;
+            const ex = 300 + tp.x;
+            const ey = 300 + tp.y;
+
+            let diff = tp.angle - fp.angle;
+            if (diff < 0) diff += 2 * Math.PI;
+
+            const arcRadius = RADIUS;
+            const largeArc = diff > Math.PI ? 1 : 0;
+
+            const defs   = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+            const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
+            marker.setAttribute("id", "arrowhead");
+            marker.setAttribute("markerWidth", "10");
+            marker.setAttribute("markerHeight", "10");
+            marker.setAttribute("refX", "9");
+            marker.setAttribute("refY", "3");
+            marker.setAttribute("orient", "auto");
+
+            const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+            poly.setAttribute("points", "0 0, 10 3, 0 6");
+            poly.setAttribute("fill", "#FFD700");
+            marker.appendChild(poly);
+
+            defs.appendChild(marker);
+            arrowContainer.appendChild(defs);
+
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute(
+                "d",
+                `M ${sx} ${sy} A ${arcRadius} ${arcRadius} 0 ${largeArc} 1 ${ex} ${ey}`
+            );
+            path.setAttribute("stroke", "#FFD700");
+            path.setAttribute("stroke-width", "4");
+            path.setAttribute("fill", "none");
+            path.setAttribute("marker-end", "url(#arrowhead)");
+            path.classList.add("arrow-anim");
+
+            arrowContainer.appendChild(path);
+        }
+
+        function clearArrow() {
+            arrowContainer.innerHTML = "";
+        }
+
+        /* 사람 원 렌더링: SVG 좌표 -> 퍼센트로 변환해서 배치 */
+        function renderPeople() {
+            peopleContainer.innerHTML = "";
+
+            for (let i = 0; i < n; i++) {
+                const isDead   = eliminated.includes(i);
+                const isWinner = survivor === i;
+
+                const pos = getPosition(i, n);
+                const leftPercent = ((300 + pos.x) / 600) * 100;
+                const topPercent  = ((300 + pos.y) / 600) * 100;
+
+                const item = document.createElement("div");
+                item.dataset.person = i;
+                item.className =
+                    "absolute transition-all duration-500 " +
+                    (isDead
+                        ? "opacity-30 scale-75"
+                        : isWinner
+                        ? "scale-125"
+                        : "scale-100");
+                item.style.left = leftPercent + "%";
+                item.style.top  = topPercent + "%";
+                item.style.transform = "translate(-50%, -50%)";
+
+                const circle = document.createElement("div");
+                circle.className =
+                    "flex items-center justify-center rounded-full font-bold shadow-xl " +
+                    "w-10 h-10 sm:w-14 sm:h-14 lg:w-16 lg:h-16 " +
+                    (isDead
+                        ? "bg-[#101017] text-gray-400"
+                        : isWinner
+                        ? "bg-gradient-to-br from-[#FFD700] to-[#FFA500] text-white animate-pulse"
+                        : "bg-white text-[#0e1d63]");
+                circle.textContent = i;
+                item.appendChild(circle);
+
+                if (isDead) {
+                    const cross = document.createElement("div");
+                    cross.className = "absolute -top-1 -right-1 text-white text-lg";
+                    cross.textContent = "✕";
+                    item.appendChild(cross);
+                }
+
+                if (isWinner) {
+                    const badge = document.createElement("div");
+                    badge.className =
+                        "absolute -top-3 -right-3 bg-[#FFD700] text-[#111] text-xs font-bold px-2 py-1 rounded-full border-2 border-white shadow-xl";
+                    badge.textContent = "생존";
+                    item.appendChild(badge);
+                }
+
+                peopleContainer.appendChild(item);
+            }
+        }
+
+        function updateEliminationOrder() {
+            if (eliminated.length === 0) {
+                eliminationOrder.innerHTML =
+                    '<span class="text-gray-300">시작하기를 눌러주세요</span>';
+                return;
+            }
+
+            let html = "";
+            eliminated.forEach((p, i) => {
+                html += `<span class="text-red-300 font-bold">${p}번</span>`;
+                if (i < eliminated.length - 1 || survivor !== null) {
+                    html += `<span class="text-white">→</span>`;
+                }
+            });
+
+            if (survivor !== null) {
+                html += `<span class="text-purple-300 font-bold text-base sm:text-xl"> ${survivor}번 (생존자)</span>`;
+            }
+
+            eliminationOrder.innerHTML = html;
+        }
+
+        /* 중앙 컨트롤 UI 세팅 (버튼 이름: 자동 / 한단계, 글자 옅은 흰색) */
+        function setupCenterControl() {
+            centerControl.innerHTML = `
+              <div class="text-center bg-black/30 backdrop-blur-sm rounded-2xl p-2 sm:p-4">
+                <div class="text-white text-lg sm:text-2xl font-bold mb-1 sm:mb-2">요세푸스 진행</div>
+                <div class="text-xs sm:text-sm mb-1 text-white/80">
+                  제거됨: <span id="delCount">0</span>명 ·
+                  생존자: <span id="leftCount">${remaining.length}</span>명
+                </div>
+                <div class="flex flex-col gap-2 mt-2 justify-center">
+                  <button
+                    id="autoBtn"
+                    class="flex-1 bg-green-500 hover:bg-green-600
+                    text-white font-bold py-2 px-3 rounded-full shadow-md text-xs sm:text-sm"
+                  >
+                    자동
+                  </button>
+                  <button
+                    id="stepBtn"
+                    class="flex-1 bg-[#3356FF] hover:bg-[#2434b8]
+                    text-white font-bold py-2 px-3 rounded-full shadow-md text-xs sm:text-sm"
+                  >
+                    한단계
+                  </button>
+                </div>
+              </div>
+            `;
+
+            delCountSpan  = document.getElementById("delCount");
+            leftCountSpan = document.getElementById("leftCount");
+
+            const autoBtn = document.getElementById("autoBtn");
+            const stepBtn = document.getElementById("stepBtn");
+
+            autoBtn.addEventListener("click", autoRun);
+            stepBtn.addEventListener("click", stepRun);
+        }
+
+        function showFinalResult() {
+            clearArrow();
+            setCurrentStep(null);
+            renderPeople();
+            updateEliminationOrder();
+
+            nInput.disabled = false;
+            kInput.disabled = false;
+
+            centerControl.innerHTML = `
+              <div class="text-center bg-black/30 backdrop-blur-sm rounded-2xl p-3 sm:p-4">
+                <div class="text-white text-xl sm:text-4xl font-bold mb-3">생존자: ${survivor}번</div>
+                <button id="resetBtn"
+                    class="bg-[#6A52FF] hover:bg-[#4b37d8]
+                    text-white font-bold py-2 px-5 sm:py-3 sm:px-6 rounded-full shadow-xl transform hover:scale-105 transition-all flex items-center gap-2 mx-auto text-sm sm:text-lg">
+                    다시 하기
+                </button>
+              </div>
+            `;
+            document.getElementById("resetBtn").addEventListener("click", reset);
+        }
+
+        /* 한 명을 제거하는 과정 (k번 세고 → 한 명 제거)
+           화살표 끝이 "제거될 사람"을 가리키도록 구현
+           + 제거 직전 빨간색 하이라이트
+        */
+        async function performOneElimination() {
+            if (remaining.length <= 1) return;
+            if (isAnimatingStep) return;
+            isAnimatingStep = true;
+
+            const startIndex = currentIndex;
+
+            // k번 세면서, "현재 카운트 위치"를 화살표 끝으로 표시
+            for (let step = 0; step < k; step++) {
+                const len = remaining.length;
+                const currentIdx = (startIndex + step) % len;          // 지금 세고 있는 사람
+                const prevIdx    = (step === 0)
+                    ? currentIdx                                   // 처음엔 자기 자신에서 시작
+                    : (startIndex + step - 1 + len) % len;        // 이전에 세었던 사람
+
+                const currentPerson = remaining[currentIdx];
+                const prevPerson    = remaining[prevIdx];
+
+                setCurrentStep(currentPerson);
+
+                if (step === 0) {
+                    clearArrow();
+                } else {
+                    drawArrow(prevPerson, currentPerson);
+                }
+
+                await new Promise((res) => setTimeout(res, 300));
+            }
+
+            // 마지막에 카운트된 사람이 제거 대상
+            const elimIndex = (startIndex + k - 1) % remaining.length;
+            const removed   = remaining[elimIndex];
+
+            // 화살표와 현재 하이라이트 제거
+            clearArrow();
+            setCurrentStep(null);
+
+            // 제거 대상 빨간색 하이라이트
+            const targetEl = peopleContainer.querySelector(
+                `[data-person="${removed}"]`
+            );
+            if (targetEl) {
+                targetEl.classList.add("person-eliminating");
+                await new Promise((res) => setTimeout(res, 300)); // 0.3초 동안 빨간색
+            }
+
+            // 실제 제거 처리
+            remaining.splice(elimIndex, 1);
+            eliminated.push(removed);
+
+            if (delCountSpan)  delCountSpan.textContent  = eliminated.length;
+            if (leftCountSpan) leftCountSpan.textContent = remaining.length;
+
+            renderPeople();
+            updateEliminationOrder();
+
+            if (remaining.length > 0) {
+                currentIndex = elimIndex;
+                if (currentIndex >= remaining.length) currentIndex = 0;
+            }
+
+            isAnimatingStep = false;
+
+            if (remaining.length === 1) {
+                survivor = remaining[0];
+                showFinalResult();
+            }
+        }
+
+        /* 자동 : 끝까지 반복 */
+        async function autoRun() {
+            if (isRunningAuto || remaining.length <= 1) return;
+            isRunningAuto = true;
+
+            nInput.disabled = true;
+            kInput.disabled = true;
+
+            while (remaining.length > 1 && isRunningAuto) {
+                await performOneElimination();
+            }
+
+            isRunningAuto = false;
+        }
+
+        /* 한단계 : 버튼 누를 때마다 한 명 제거 */
+        function stepRun() {
+            if (isRunningAuto || remaining.length <= 1) return;
+            nInput.disabled = true;
+            kInput.disabled = true;
+            performOneElimination();
+        }
+
+        function reset() {
+            // 안전하게 N을 다시 제한 (3~30)
+            n = Math.max(3, Math.min(30, n));
+
+            eliminated = [];
+            survivor = null;
+            remaining = Array.from({ length: n }, (_, i) => i);
+            currentIndex = 0;
+            isRunningAuto = false;
+            isAnimatingStep = false;
+
+            nInput.value = n; // UI에도 반영
+            nInput.disabled = false;
+            kInput.disabled = false;
+            clearArrow();
+            setCurrentStep(null);
+
+            renderPeople();
+            updateEliminationOrder();
+            setupCenterControl();
+
+            // description 요소가 있을 때만 갱신
+            if (description) {
+                description.textContent = `${k}번째마다 한 명씩 제거됩니다`;
+            }
+        }
+
+        nInput.addEventListener("input", () => {
+            n = Math.max(3, Math.min(30, parseInt(nInput.value) || 3));
+            reset();
+        });
+
+        kInput.addEventListener("input", () => {
+            k = Math.max(1, Math.min(10, parseInt(kInput.value) || 1));
+            if (description) {
+                description.textContent = `${k}번째마다 한 명씩 제거됩니다`;
+            }
+        });
+
+        window.addEventListener("resize", () => {
+            renderPeople();
+            clearArrow();
+            setCurrentStep(null);
+        });
+
+        // 초기 설정
+        reset();
+    </script>
+</body>
+</html>
